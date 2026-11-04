@@ -68,7 +68,7 @@
       <sc-if value="{{ foxOpen }}" hint-placeholder-val="{{ false }}">
         <div class="card" style="padding:20px 22px;gap:14px">
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <div class="field" style="flex:1;min-width:200px"><label>野狐暱稱</label><input class="input" value="{{ foxName }}" onChange="{{ onFoxName }}" onKeyDown="{{ onFoxKey }}" placeholder="例如 関羽zero"></div>
+            <div class="field" style="flex:1;min-width:200px"><label>野狐暱稱</label><input class="input" value="{{ foxName }}" onChange="{{ onFoxName }}" onKeyDown="{{ onFoxKey }}"></div>
             <button class="btn btn-primary" style="white-space:nowrap" disabled="{{ foxBusy }}" onClick="{{ loadFox }}">{{ foxBtn }}</button>
           </div>
           <sc-if value="{{ hasFoxErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:14px;color:var(--color-accent-800)">{{ foxErr }}</div></sc-if>
@@ -130,6 +130,7 @@
               <button class="btn btn-secondary" style="white-space:nowrap;padding:6px 12px" disabled="{{ delDisabled }}" onClick="{{ delNode }}">刪除節點</button>
               <sc-if value="{{ inVar }}" hint-placeholder-val="{{ false }}">
                 <button class="btn btn-secondary" style="white-space:nowrap;padding:6px 12px" onClick="{{ exitVar }}">回到實戰</button>
+                <button class="btn btn-secondary" style="white-space:nowrap;padding:6px 12px" onClick="{{ saveVarSelf }}">{{ saveVarSelfText }}</button>
                 <button class="btn btn-primary" style="white-space:nowrap;padding:6px 12px" onClick="{{ saveVar }}">{{ saveVarText }}</button>
               </sc-if>
             </div>
@@ -221,11 +222,33 @@
             <sc-if value="{{ hasFoxRes }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-neutral-700)">棋譜紀錄的結果：{{ foxRes }}</div></sc-if>
             <div class="field"><label>勝負原因</label><textarea class="input" rows="3" style="border-radius:var(--radius-lg);resize:vertical" value="{{ inp.reason }}" onChange="{{ on.reason }}"></textarea></div>
             <div class="field"><label>自評關鍵手（手數，最多 3 手）</label><input class="input" value="{{ inp.self_moves }}" onChange="{{ on.self_moves }}" placeholder="例如 45, 88, 120"></div>
-            <div class="field"><label>帶走的規則</label><textarea class="input" rows="2" style="border-radius:var(--radius-lg);resize:vertical" value="{{ inp.takeaway }}" onChange="{{ on.takeaway }}"></textarea></div>
-            <sc-if value="{{ hasVars }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <span style="font-size:13px;color:var(--color-neutral-800)">變化圖 · {{ varCount }}</span>
-                <sc-for list="{{ savedVars }}" as="v" hint-placeholder-count="0">
+            <sc-if value="{{ hasBoard }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <span style="font-size:13px;font-weight:600;color:var(--color-neutral-800)">自評關鍵手的AI看法</span>
+                <sc-if value="{{ smHint }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-neutral-700)">{{ smHintText }}</div></sc-if>
+                <sc-for list="{{ selfAi }}" as="m" hint-placeholder-count="0">
+                  <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:var(--radius-lg);background:var(--color-bg)">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                      <span style="font-size:14px;font-weight:600">第 {{ m.no }} 手 · {{ m.who }}</span>
+                      <span class="tag {{ m.lossClass }}">{{ m.lossText }}</span>
+                      <span style="margin-right:auto"></span>
+                      <button class="btn btn-secondary" style="white-space:nowrap;padding:4px 12px" onClick="{{ m.goBest }}">看 AI 建議</button>
+                      <button class="btn btn-ghost" style="white-space:nowrap;padding:4px 10px" onClick="{{ m.go }}">看實戰</button>
+                    </div>
+                    <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty">{{ m.text }}</div>
+                    <div style="position:relative;height:56px;border-radius:12px;overflow:hidden;background:var(--color-neutral-100)">
+                      <svg viewBox="{{ m.vb }}" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+                        <line x1="0" x2="{{ m.w }}" y1="50" y2="50" stroke="var(--color-neutral-500)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></line>
+                        <line x1="{{ m.mx }}" x2="{{ m.mx }}" y1="0" y2="100" stroke="oklch(0.58 0.2 27)" stroke-width="2" vector-effect="non-scaling-stroke"></line>
+                        <path d="{{ m.line }}" fill="none" stroke="var(--color-accent)" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+                      </svg>
+                      <span style="position:absolute;left:8px;top:3px;font-size:10px;color:var(--color-neutral-700)">黑勝率 · 第 {{ m.lo }}–{{ m.hi }} 手</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ hasSelfVars }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:13px;color:var(--color-neutral-800)">變化圖 · {{ selfVarCount }}</span>
+                  <sc-for list="{{ selfVars }}" as="v" hint-placeholder-count="0">
                   <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:var(--radius-lg);background:{{ v.bg }}">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                       <span style="font-size:14px;font-weight:600">{{ v.title }}</span>
@@ -234,11 +257,31 @@
                       <button class="btn btn-ghost" style="white-space:nowrap;padding:4px 10px" onClick="{{ v.del }}">移除</button>
                     </div>
                     <input class="input" value="{{ v.note }}" onChange="{{ v.onNote }}" placeholder="這個變化說明了什麼">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--color-neutral-700)"><span>放在</span><div class="seg"><sc-for list="{{ v.placeOpts }}" as="p" hint-placeholder-count="2"><button class="seg-opt" onClick="{{ p.onClick }}" style="border:0;background:{{ p.bg }};color:{{ p.color }};white-space:nowrap;font-size:12px;padding:4px 10px">{{ p.label }}</button></sc-for></div></div>
+                  </div>
+                </sc-for>
+                </sc-if>
+              </div>
+            </sc-if>
+            <div class="field"><label>帶走的規則</label><textarea class="input" rows="2" style="border-radius:var(--radius-lg);resize:vertical" value="{{ inp.takeaway }}" onChange="{{ on.takeaway }}"></textarea></div>
+            <sc-if value="{{ hasRuleVars }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:13px;color:var(--color-neutral-800)">變化圖 · {{ ruleVarCount }}</span>
+                <sc-for list="{{ ruleVars }}" as="v" hint-placeholder-count="0">
+                  <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:var(--radius-lg);background:{{ v.bg }}">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                      <span style="font-size:14px;font-weight:600">{{ v.title }}</span>
+                      <span style="font-size:13px;color:var(--color-neutral-800);margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.seq }}</span>
+                      <sc-if value="{{ hasBoard }}" hint-placeholder-val="{{ false }}"><button class="btn btn-secondary" style="white-space:nowrap;padding:4px 12px" onClick="{{ v.view }}">在棋盤上看</button></sc-if>
+                      <button class="btn btn-ghost" style="white-space:nowrap;padding:4px 10px" onClick="{{ v.del }}">移除</button>
+                    </div>
+                    <input class="input" value="{{ v.note }}" onChange="{{ v.onNote }}" placeholder="這個變化說明了什麼">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--color-neutral-700)"><span>放在</span><div class="seg"><sc-for list="{{ v.placeOpts }}" as="p" hint-placeholder-count="2"><button class="seg-opt" onClick="{{ p.onClick }}" style="border:0;background:{{ p.bg }};color:{{ p.color }};white-space:nowrap;font-size:12px;padding:4px 10px">{{ p.label }}</button></sc-for></div></div>
                   </div>
                 </sc-for>
               </div>
             </sc-if>
-            <sc-if value="{{ varTip }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-neutral-700)">在棋盤上點空位試下變化，按「存到帶走的規則」就會列在這裡。</div></sc-if>
+            <sc-if value="{{ varTip }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-neutral-700)">在棋盤上點空位試下變化，按「存到帶走的規則」或「存到自評關鍵手」就會列在對應的地方。</div></sc-if>
           </div>
 
           <div class="card" style="padding:20px 22px;gap:14px">
@@ -699,7 +742,7 @@ class Component extends DCLogic {
     const seqOf = (moves) => moves.map((m, i) => (m.c === 'B' ? '黑' : '白') + nameOf(m.x, m.y, N)).join(' ');
     const ruleCN = (I.rules || '中國') === '中國', counted = ['數子', '數目'].includes(I.end);
     const hits = d.points.filter(p => p.in_self).length;
-    return Object.assign(out, {
+    const R0 = Object.assign(out, {
       back: () => this.setState({ view: 'list', draft: null, tryFor: null, vari: null }), save: () => this.save(), saving: s.saving, saveBtn: s.saving ? '儲存中…' : '儲存',
       canDelete: !!d.id, askDel: () => this.setState({ delOpen: true }),
       edTitle: (I.opponent ? 'vs ' + I.opponent : '新對局') + (d.played_on ? ' · ' + mdOf(d.played_on) : ''),
@@ -723,13 +766,23 @@ class Component extends DCLogic {
       delDisabled: !vari, delNode: () => { if (!vari) return; if (vari.at === 0) return this.setState({ vari: null, cur: vari.base });
         const moves = vari.moves.slice(0, vari.at - 1); this.setState(moves.length ? { vari: Object.assign({}, vari, { moves, at: moves.length }) } : { vari: null, cur: vari.base }); },
       exitVar: () => this.setState({ vari: null, cur: vari ? vari.base : cur }),
-      saveVarText: vari && vari.savedId && savedArr.some(v => v.id === vari.savedId) ? '更新到帶走的規則' : '存到帶走的規則',
-      saveVar: () => { if (!vari || !vari.moves.length) return this.say('還沒有試下任何一手');
-        const ex = vari.savedId && savedArr.find(v => v.id === vari.savedId);
-        if (ex) { setVars(savedArr.map(v => v.id === ex.id ? Object.assign({}, v, { base: vari.base, moves: vari.moves }) : v)); this.say('已更新變化圖，記得按「儲存」'); return; }
-        const id = 'v' + Date.now(); setVars(savedArr.concat([{ id, base: vari.base, moves: vari.moves, note: '' }])); this.setState({ vari: Object.assign({}, vari, { savedId: id }) }); this.say('已存到帶走的規則，記得按「儲存」'); },
+      ...(() => { const ex = vari && vari.savedId && savedArr.find(v => v.id === vari.savedId), PN = { rule: '帶走的規則', self: '自評關鍵手' };
+        const saveTo = place => () => { if (!vari || !vari.moves.length) return this.say('還沒有試下任何一手');
+          if (ex) { setVars(savedArr.map(v => v.id === ex.id ? Object.assign({}, v, { base: vari.base, moves: vari.moves, place }) : v)); this.say('已更新變化圖到' + PN[place] + '，記得按「儲存」'); return; }
+          const id = 'v' + Date.now(); setVars(savedArr.concat([{ id, base: vari.base, moves: vari.moves, note: '', place }])); this.setState({ vari: Object.assign({}, vari, { savedId: id }) }); this.say('已存到' + PN[place] + '，記得按「儲存」'); };
+        return { saveVar: saveTo('rule'), saveVarSelf: saveTo('self'), saveVarText: (ex ? '更新到' : '存到') + '帶走的規則', saveVarSelfText: (ex ? '更新到' : '存到') + '自評關鍵手' }; })(),
       hasVars: !!savedArr.length, varCount: savedArr.length, varTip: hasBoard && !savedArr.length,
-      savedVars: savedArr.map(v => ({ title: '第 ' + v.base + ' 手後 · ' + v.moves.length + ' 手', seq: seqOf(v.moves), note: v.note || '',
+      ...(() => { const nos = [...new Set((String(I.self_moves || '').match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= maxMove))].slice(0, 3);
+        const goN = n => () => this.setState({ cur: Math.max(0, Math.min(maxMove, n)), vari: null, tryFor: null });
+        const list = !ai ? [] : nos.map(i => { const m = B.line.moves[i - 1] || {}, b0 = ai.wr[i - 1], b1 = ai.wr[i], ls = lossAt(i), best = ai.best[i - 1];
+          const lo = Math.max(0, i - 10), hi = Math.min(maxMove, i + 10), pts = []; for (let k = lo; k <= hi; k++) if (ai.wr[k] != null) pts.push((pts.length ? 'L' : 'M') + (k - lo) + ' ' + (100 - ai.wr[k]).toFixed(1));
+          const me = m.pass ? '虛手' : nameOf(m.x, m.y, N), same = best && best === me;
+          const mine = c => m.c === 'B' ? c : 100 - c;
+          return { no: i, who: (m.c === 'B' ? '黑 ' : '白 ') + me, lossText: ls == null ? '未分析' : ls === 0 ? '無損失' : '損失 ' + ls + '%', lossClass: ls == null ? 'tag-neutral' : ls >= 8 ? 'tag-accent' : ls >= 3 ? 'tag-neutral' : 'tag-accent-2',
+            text: b0 == null || b1 == null ? '這一手還沒分析到。' : (m.c === 'B' ? '黑' : '白') + '方勝率 ' + Math.round(mine(b0)) + '% → ' + Math.round(mine(b1)) + '%' + (best && best !== 'pass' ? (same ? '。AI 也選這一手。' : '。AI 建議 ' + best + '。') : '。'),
+            vb: '0 0 ' + Math.max(1, hi - lo) + ' 100', w: Math.max(1, hi - lo), mx: i - lo, line: pts.join(' '), lo, hi, go: goN(i), goBest: goN(i - 1) }; });
+        return { selfAi: list, smHint: !nos.length || !ai, smHintText: !nos.length ? '在上方填入自評關鍵手的手數，這裡會列出 AI 對這幾手的勝率變化與建議。' : '按「開始分析」後，這裡會列出 AI 對這幾手的勝率變化與建議。' }; })(),
+      savedVars: savedArr.map(v => ({ place: v.place || 'rule', placeOpts: [['rule', '帶走的規則'], ['self', '自評關鍵手']].map(([p, l]) => seg((v.place || 'rule') === p, l, () => setVars(savedArr.map(q => q.id === v.id ? Object.assign({}, q, { place: p }) : q)))), title: '第 ' + v.base + ' 手後 · ' + v.moves.length + ' 手', seq: seqOf(v.moves), note: v.note || '',
         bg: vari && vari.savedId === v.id ? 'var(--color-accent-2-200)' : 'var(--color-bg)',
         onNote: e => { const t = e.target.value; setVars(savedArr.map(q => q.id === v.id ? Object.assign({}, q, { note: t }) : q)); },
         view: () => this.setState({ tryFor: null, cur: v.base, vari: { base: Math.min(v.base, maxMove), moves: v.moves, at: v.moves.length, savedId: v.id } }),
@@ -794,6 +847,8 @@ class Component extends DCLogic {
           del: () => this.setState(st => ({ tryFor: null, draft: Object.assign({}, st.draft, { points: st.draft.points.filter(x => x.id !== p.id) }) })),
           selfOpts: [[true, '是'], [false, '否']].map(([v, l]) => seg(!!p.in_self === v, l, () => this.patchKp(p.id, { in_self: v }))) }; })
     });
+    const sv = R0.savedVars || [], rv = sv.filter(v => v.place !== 'self'), fv = sv.filter(v => v.place === 'self');
+    return Object.assign(R0, { ruleVars: rv, hasRuleVars: !!rv.length, ruleVarCount: rv.length, selfVars: fv, hasSelfVars: !!fv.length, selfVarCount: fv.length });
   }
 }
 </script>

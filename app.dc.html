@@ -139,7 +139,7 @@
                     <svg width="120" height="36" viewBox="0 0 120 36" style="margin-left:auto;overflow:visible"><line x1="0" x2="120" y1="{{ c.thrS }}" y2="{{ c.thrS }}" stroke="var(--color-neutral-400)" stroke-dasharray="3 3"></line><polyline points="{{ c.ptsS }}" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
                   </span>
                   <span style="display:block;height:8px;border-radius:999px;background:var(--color-neutral-200);overflow:hidden"><span style="display:block;height:100%;width:{{ c.prog }};border-radius:999px;background:var(--color-accent-2-500)"></span></span>
-                  <span style="display:flex;font-size:12px;color:var(--color-neutral-700)"><span style="margin-right:auto">答對 {{ c.okT }}s · 錯題 {{ c.badT }}s</span><span>快錯 {{ c.fastPct }}</span></span>
+                  <span style="display:flex;font-size:12px;color:var(--color-neutral-700)"><span style="margin-right:auto">答對 {{ c.okT }}s · 錯題 {{ c.badT }}s</span><span style="display:flex;gap:10px"><span>快錯 {{ c.fastPct }}</span><span>重錯 {{ c.redoBadPct }}</span></span></span>
                 </button>
               </sc-for>
             </div>
@@ -246,10 +246,13 @@
                   <a class="btn btn-primary" href="{{ r.url }}" target="_blank" style="white-space:nowrap"><span>到 101 重做</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg></a>
                   <button class="btn btn-ghost" style="white-space:nowrap" onClick="{{ r.edit }}">修改分類</button>
                 </div>
-                <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:{{ r.bg }};cursor:pointer;font-size:14px;font-weight:600;align-self:flex-start;user-select:none" style-hover="background:var(--color-accent-2-200)">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:{{ r.bg }};cursor:pointer;font-size:14px;font-weight:600;flex:none;user-select:none" style-hover="background:var(--color-accent-2-200)">
                   <input type="checkbox" checked="{{ r.done }}" onChange="{{ r.toggle }}" style="width:18px;height:18px;margin:0;accent-color:var(--color-accent-2-700);cursor:pointer">
                   <span style="color:var(--color-accent-2-900)">{{ r.doneText }}</span>
                 </label>
+                <input class="input" type="text" placeholder="我下的那手失敗的原因" defaultValue="{{ r.note }}" onBlur="{{ r.saveNote }}" onKeyDown="{{ r.noteKey }}" style="flex:1 1 140px;min-width:0;height:38px;padding:0 14px;font-size:14px">
+                </div>
               </div>
             </sc-for>
           </div>
@@ -683,7 +686,7 @@ class Component extends DCLogic {
       const slopeText = sl == null ? '至少要 2 個區間各 3 題以上' : (sl >= 0 ? '+' : '') + f1(sl) + '%／' + unit;
       const gaps = []; if (t.acc < SC.acc) gaps.push('差 ' + Math.ceil(SC.acc - t.acc) + '%'); if (t.n < SC.n) gaps.push('差 ' + (SC.n - t.n) + ' 題');
       return { key, S: SC, arr, t, trendB, up, gapAcc: Math.max(0, SC.acc - t.acc), gapN: Math.max(0, SC.n - t.n),
-        n: t.n, accPct: pct(t.acc), okT: f1(t.okT), badT: f1(t.badT), fastPct: t.nBad ? pct(t.fast / t.nBad * 100) : '—',
+        n: t.n, accPct: pct(t.acc), okT: f1(t.okT), badT: f1(t.badT), fastPct: t.nBad ? pct(t.fast / t.nBad * 100) : '—', redoBadPct: t.pb ? pct(t.pbBad / t.pb * 100) : '—',
         status: up ? '可升級' : gaps.join('、'), tagClass: up ? 'tag-accent-2' : 'tag-neutral',
         trendText: tr[0], trendClass: tr[1], slopeText,
         prog: Math.min(100, Math.round(Math.min(1, t.acc / SC.acc) * Math.min(1, t.n / SC.n) * 100)) + '%',
@@ -826,7 +829,14 @@ class Component extends DCLogic {
           const settings = Object.assign({}, me.settings || {}, { reviewed: next });
           this.setState(st => ({ profile: Object.assign({}, st.profile, { settings }) }));
           this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: me.settings }) })); }); };
-        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { done: !!t, doneText: t ? '已複習 ' + md(t) : '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
+        const NT = (me.settings || {}).notes || {};
+        const saveNote = r => e => { const v = e.target.value.trim(); if (v === (NT[r.pid] || '')) return;
+          const next = Object.assign({}, NT); if (v) next[r.pid] = v; else delete next[r.pid];
+          const settings = Object.assign({}, me.settings || {}, { notes: next });
+          this.setState(st => ({ profile: Object.assign({}, st.profile, { settings }) }));
+          this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: me.settings }) })); }); };
+        const noteKey = e => { if (e.key === 'Enter') e.target.blur(); };
+        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { note: NT[r.pid] || '', saveNote: saveNote(r), noteKey, done: !!t, doneText: t ? '已複習 ' + md(t) : '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
           .filter(r => s.rvDone === '全部' || (s.rvDone === '已複習' ? r.done : !r.done));
         const nDone = rvFiltered.filter(r => doneOf(r)).length;
         return { rvList: list, rvEmpty: !list.length, rvCountText: list.length + ' 題 · 已複習 ' + nDone + '／' + rvFiltered.length,
