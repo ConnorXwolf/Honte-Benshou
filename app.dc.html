@@ -836,7 +836,7 @@ class Component extends DCLogic {
           this.setState(st => ({ profile: Object.assign({}, st.profile, { settings }) }));
           this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: me.settings }) })); }); };
         const noteKey = e => { if (e.key === 'Enter') e.target.blur(); };
-        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { note: NT[r.pid] || '', saveNote: saveNote(r), noteKey, done: !!t, doneText: t ? '已複習 ' + md(t) : '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
+        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { note: NT[r.pid] || '', saveNote: saveNote(r), noteKey, done: !!t, doneText: '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
           .filter(r => s.rvDone === '全部' || (s.rvDone === '已複習' ? r.done : !r.done));
         const nDone = rvFiltered.filter(r => doneOf(r)).length;
         return { rvList: list, rvEmpty: !list.length, rvCountText: list.length + ' 題 · 已複習 ' + nDone + '／' + rvFiltered.length,
