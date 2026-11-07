@@ -251,7 +251,7 @@
                   <input type="checkbox" checked="{{ r.done }}" onChange="{{ r.toggle }}" style="width:18px;height:18px;margin:0;accent-color:var(--color-accent-2-700);cursor:pointer">
                   <span style="color:var(--color-accent-2-900)">{{ r.doneText }}</span>
                 </label>
-                <input class="input" type="text" placeholder="我下的那手失敗的原因" defaultValue="{{ r.note }}" onBlur="{{ r.saveNote }}" onKeyDown="{{ r.noteKey }}" style="flex:1 1 140px;min-width:0;height:38px;padding:0 14px;font-size:14px">
+                <input class="input" type="text" placeholder="我下的那手失敗的原因" value="{{ r.note }}" onChange="{{ r.editNote }}" onBlur="{{ r.saveNote }}" onKeyDown="{{ r.noteKey }}" style="flex:1 1 140px;min-width:0;height:38px;padding:0 14px;font-size:14px">
                 </div>
               </div>
             </sc-for>
@@ -485,7 +485,7 @@ const LABEL = { overview: '總覽', detail: '組合詳情', review: '錯題複�
 class Component extends DCLogic {
   state = {
     boot: true, fatal: '', demo: false, profile: null, rows: [], rowsSince: null, loading: false, logs: [],
-    page: 'overview', period: '4w', cFrom: iso(41), cTo: iso(0), combo: null, rvCombo: '全部', rvFirst: '全部', rvMin: 2, rvDone: '全部',
+    page: 'overview', period: '4w', cFrom: iso(41), cTo: iso(0), combo: null, rvCombo: '全部', rvFirst: '全部', rvMin: 2, rvDone: '全部', rvDrafts: {},
     w: typeof window !== 'undefined' ? window.innerWidth : 1280,
     myCode: '', f: { code: '' }, authErr: '', authMsg: '', busy: false,
     toast: '', editing: null, setDraft: Object.assign({}, DEF), catSel: {}, renames: {}, thOpen: null, thDraft: {}, mergeName: '', nc: { name: '', books: '' }, delCat: null, delOk: false, prof: { display_name: '', level: '' }
@@ -823,20 +823,23 @@ class Component extends DCLogic {
       rvMinOpts: [[2, '≥ 2 次'], [3, '≥ 3 次']].map(([v, l]) => seg(s.rvMin, v, l, () => this.setState({ rvMin: v }))),
       ...(() => {
         const RV = (me.settings || {}).reviewed || {};
-        const doneOf = r => { const t = RV[r.pid]; return t && !(r.lastD > t && r.lastRes === '答錯') ? t : null; };
-        const toggle = r => e => { const on = e.target.checked, next = Object.assign({}, RV);
-          if (on) next[r.pid] = iso(0); else delete next[r.pid];
-          const settings = Object.assign({}, me.settings || {}, { reviewed: next });
-          this.setState(st => ({ profile: Object.assign({}, st.profile, { settings }) }));
-          this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: me.settings }) })); }); };
         const NT = (me.settings || {}).notes || {};
-        const saveNote = r => e => { const v = e.target.value.trim(); if (v === (NT[r.pid] || '')) return;
-          const next = Object.assign({}, NT); if (v) next[r.pid] = v; else delete next[r.pid];
-          const settings = Object.assign({}, me.settings || {}, { notes: next });
+        const DR = s.rvDrafts || {};
+        const doneOf = r => { const t = RV[r.pid]; return t && !(r.lastD > t && r.lastRes === '答錯') ? t : null; };
+        const curSettings = () => (this.state.profile && this.state.profile.settings) || {};
+        const commit = mutate => { const prev = curSettings(), settings = mutate(Object.assign({}, prev));
           this.setState(st => ({ profile: Object.assign({}, st.profile, { settings }) }));
-          this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: me.settings }) })); }); };
+          this.api.saveProfile({ settings }).catch(err => { this.toast('儲存失敗：' + (err.message || err)); this.setState(st => ({ profile: Object.assign({}, st.profile, { settings: prev }) })); }); };
+        const withNote = (st, pid) => { if (!(pid in (this.state.rvDrafts || {}))) return st;
+          const v = String(this.state.rvDrafts[pid]).trim(), n = Object.assign({}, st.notes || {}); if (v) n[pid] = v; else delete n[pid]; st.notes = n; return st; };
+        const toggle = r => e => { const on = e.target.checked;
+          commit(st => { const rv = Object.assign({}, st.reviewed || {}); if (on) rv[r.pid] = iso(0); else delete rv[r.pid]; st.reviewed = rv; return withNote(st, r.pid); }); };
+        const editNote = r => e => { const v = e.target.value; this.setState(st => ({ rvDrafts: Object.assign({}, st.rvDrafts || {}, { [r.pid]: v }) })); };
+        const saveNote = r => () => { const d = this.state.rvDrafts || {}; if (!(r.pid in d)) return;
+          if (String(d[r.pid]).trim() === ((curSettings().notes || {})[r.pid] || '')) return;
+          commit(st => withNote(st, r.pid)); };
         const noteKey = e => { if (e.key === 'Enter') e.target.blur(); };
-        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { note: NT[r.pid] || '', saveNote: saveNote(r), noteKey, done: !!t, doneText: '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
+        const list = rvFiltered.map(r => { const t = doneOf(r); return Object.assign({}, r, { note: r.pid in DR ? DR[r.pid] : (NT[r.pid] || ''), editNote: editNote(r), saveNote: saveNote(r), noteKey, done: !!t, doneText: '已複習', toggle: toggle(r), bg: t ? 'var(--color-accent-2-100)' : 'var(--color-bg)' }); })
           .filter(r => s.rvDone === '全部' || (s.rvDone === '已複習' ? r.done : !r.done));
         const nDone = rvFiltered.filter(r => doneOf(r)).length;
         return { rvList: list, rvEmpty: !list.length, rvCountText: list.length + ' 題 · 已複習 ' + nDone + '／' + rvFiltered.length,
